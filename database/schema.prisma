@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  GAME_MASTER
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ItemType {
+  WEAPON
+  ARMOR
+  CONSUMABLE
+  ARTIFACT
+  MISC
+}
+
+enum ItemRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  VERY_RARE
+  LEGENDARY
+}
+
+model User {
+  id            String           @id @default(uuid())
+  email         String           @unique
+  passwordHash  String
+  name          String
+  role          UserRole         @default(PLAYER)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  campaigns     Campaign[]
+  characters    Character[]
+  refreshTokens RefreshToken[]
+  memberships   CampaignMember[]
+
+  @@map("users")
+}
+
+model Campaign {
+  id           String           @id @default(uuid())
+  name         String
+  description  String?
+  setting      String?
+  status       CampaignStatus   @default(ACTIVE)
+  gameMasterId String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  gameMaster   User             @relation(fields: [gameMasterId], references: [id], onDelete: Cascade)
+  characters   Character[]
+  npcs         Npc[]
+  items        Item[]
+  sessions     Session[]
+  media        Media[]
+  members      CampaignMember[]
+
+  @@map("campaigns")
+}
+
+model Character {
+  id           String               @id @default(uuid())
+  name         String
+  class        String
+  race         String
+  level        Int                  @default(1)
+  strength     Int                  @default(10)
+  dexterity    Int                  @default(10)
+  constitution Int                  @default(10)
+  intelligence Int                  @default(10)
+  wisdom       Int                  @default(10)
+  charisma     Int                  @default(10)
+  history      String?
+  skills       String?
+  playerId     String
+  campaignId   String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  player       User                 @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  campaign     Campaign?            @relation(fields: [campaignId], references: [id])
+  inventory    CharacterInventory[]
+
+  @@map("characters")
+}
+
+model Npc {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  role          String?
+  attributes    Json?
+  relationships String?
+  campaignId    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("npcs")
+}
+
+model Item {
+  id          String               @id @default(uuid())
+  name        String
+  description String?
+  type        ItemType             @default(MISC)
+  rarity      ItemRarity           @default(COMMON)
+  properties  Json?
+  campaignId  String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  campaign    Campaign             @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  inventory   CharacterInventory[]
+
+  @@map("items")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  title      String
+  date       DateTime
+  summary    String?
+  notes      String?
+  milestones String?
+  campaignId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Media {
+  id         String   @id @default(uuid())
+  filename   String
+  url        String
+  type       String?
+  campaignId String
+  createdAt  DateTime @default(now())
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("media")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model CampaignMember {
+  id         String           @id @default(uuid())
+  campaignId String
+  userId     String?
+  email      String?
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  campaign   Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user       User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_members")
+}
+
+model CharacterInventory {
+  id          String   @id @default(uuid())
+  characterId String
+  itemId      String
+  quantity    Int      @default(1)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("character_inventory")
+}
